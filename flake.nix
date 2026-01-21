@@ -46,7 +46,7 @@
                         odin build . -o:speed -linker:mold -microarch:native -out:skl
 
                         runHook postBuild
-                    '';
+                        '';
 
                         installPhase = ''
                         runHook preInstall
@@ -63,7 +63,7 @@
                         }"
 
                         runHook postInstall
-                    '';
+                        '';
 
                         meta = {
                             description = "A single-key launcher for Linux";
