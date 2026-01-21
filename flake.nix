@@ -52,9 +52,9 @@
                         runHook preInstall
 
                         mkdir -p $out/bin
-                        cp skl $out/bin
+                        cp skl $out/bin/skl-unwrapped
 
-                        makeWrapper $out/bin/skl $out/bin/skl-wrapped \
+                        makeWrapper $out/bin/skl-unwrapped $out/bin/skl \
                         --prefix LD_LIBRARY_PATH : "${
                             nixpkgs.lib.makeLibraryPath [
                                 pkgs.sdl3
@@ -68,7 +68,7 @@
                         meta = {
                             description = "A single-key launcher for Linux";
                             homepage = "https://github.com/souzaware/skl";
-                            mainProgram = "skl-wrapped";
+                            mainProgram = "skl";
                         };
                     };
         in
