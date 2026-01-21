@@ -2,6 +2,9 @@ package skl
 
 import sdl "vendor:sdl3"
 import os "core:os/os2"
+import "vendor:sdl3/ttf"
+import "core:strings"
+import "core:unicode/utf8"
 
 spawn_command :: proc(command: string) -> (ok: bool) {
     program: os.Process_Desc = {
@@ -13,6 +16,11 @@ spawn_command :: proc(command: string) -> (ok: bool) {
     }
 
     return true
+}
+
+Keybind :: struct {
+    key: rune,
+    command: string,
 }
 
 main :: proc() {
@@ -31,20 +39,51 @@ main :: proc() {
         .UTILITY
     })
 
-    commands := make(map[rune]string)
-
-    commands['d'] = "discord"
-    commands['h'] = "helium"
-    commands['o'] = "obs"
-    commands['z'] = "zapzap"
-    commands['a'] = "aseprite"
-    commands['k'] = "keepassxc"
-    commands['n'] = "obsidian"
-    commands['r'] = "reaper"
-
     renderer := sdl.CreateRenderer(window, nil)
 
     sdl.SetRenderVSync(renderer, 1)
+
+    commands: []Keybind = {
+        {
+            key = 'd',
+            command = "discord",
+        },
+        {
+            key = 'h',
+            command = "helium",
+        },
+        {
+            key = 'o',
+            command = "obs",
+        },
+        {
+            key = 'z',
+            command = "zapzap",
+        },
+        {
+            key = 'a',
+            command = "aseprite",
+        },
+        {
+            key = 'k',
+            command = "keepassxc",
+        },
+        {
+            key = 'n',
+            command = "obsidian",
+        },
+        {
+            key = 'r',
+            command = "reaper",
+        },
+    }
+
+    ttf.Init()
+
+    font_file := #load("./FiraCode-Regular.ttf")
+    font := ttf.OpenFontIO(sdl.IOFromMem(raw_data(font_file), len(font_file)), true, 32)
+
+    text_engine := ttf.CreateRendererTextEngine(renderer)
 
     running := true
     for running {
@@ -55,9 +94,9 @@ main :: proc() {
                 return
             }
 
-            for k, v in commands {
-                if rune(event.key.key) == k {
-                    running = !spawn_command(v)
+            for k in commands {
+                if rune(event.key.key) == k.key {
+                    running = !spawn_command(k.command)
                 }
             }
         }
@@ -73,7 +112,30 @@ main :: proc() {
             w = 500,
             h = 500,
         })
+        
+        line := 0
+        for key in commands {
+            cstr: cstring = strings.clone_to_cstring(utf8.runes_to_string([]rune{key.key}, context.temp_allocator), context.temp_allocator)
+
+            text := ttf.CreateText(text_engine, font, cstr, len(cstr))
+
+            ttf.DrawRendererText(text, f32(1920 / 2 - 500 / 2 + 50), f32(1080 / 2 - 500 / 2 + 32 +(line * 36)))
+
+            ttf.DestroyText(text)
+
+            cstr = strings.clone_to_cstring(key.command, context.temp_allocator)
+
+            text = ttf.CreateText(text_engine, font, cstr, len(cstr))
+
+            ttf.DrawRendererText(text, f32(1920 / 2 - 500 / 2 + 100), f32(1080 / 2 - 500 / 2 + 32 + (line * 36)))
+
+            ttf.DestroyText(text)
+
+            line += 1
+        }
 
         sdl.RenderPresent(renderer)
+
+        free_all(context.temp_allocator)
     }
 }

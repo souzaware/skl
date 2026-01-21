@@ -11,6 +11,7 @@
                 buildInputs = with pkgs; [
                     odin
                     sdl3
+                    sdl3-ttf
                 ];
             };
         }
