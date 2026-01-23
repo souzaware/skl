@@ -6,6 +6,7 @@ import "core:encoding/ini"
 import "vendor:sdl3/ttf"
 import "core:strings"
 import "core:fmt"
+import "core:log"
 import "core:unicode/utf8"
 
 Config :: struct {
@@ -51,10 +52,40 @@ spawn_command :: proc(command: string) -> (ok: bool) {
     return true
 }
 
+Key_Command_Texts :: struct {
+    key: ^ttf.Text,
+    command: ^ttf.Text,
+}
+
 main :: proc() {
     load_config()
 
-    window := sdl.CreateWindow("", 1920, 1080, {
+    if status := sdl.Init({.VIDEO}); !status {
+        panic("error: failed starting SDL")
+    }
+
+    if status := ttf.Init(); !status {
+        panic("error: failed starting TTF")
+    }
+
+    display := sdl.GetDesktopDisplayMode(sdl.GetPrimaryDisplay())
+
+    window_width := 1920
+    window_height := 1080
+
+    display_id := sdl.GetPrimaryDisplay()
+
+    if display_id == 0 {
+        log.fatal("error: failed getting primary display")
+    } 
+
+    current_display := sdl.GetDesktopDisplayMode(display_id)
+
+    if current_display == nil {
+        log.fatal("error: failed getting primary information")
+    }
+
+    window := sdl.CreateWindow("", current_display.w, current_display.h, {
         .UTILITY,
         .MOUSE_CAPTURE,
         .FULLSCREEN,
@@ -64,21 +95,38 @@ main :: proc() {
         .TRANSPARENT,
         .KEYBOARD_GRABBED,
         .MOUSE_GRABBED,
-        .INPUT_FOCUS,
         .BORDERLESS,
-        .UTILITY
     })
+
+    window_size := [2]i32{}
+
+    sdl.GetWindowSize(window, &window_size.x, &window_size.y)
+    window_center := [2]f32{
+        f32(window_size.x) / 2,
+        f32(window_size.y) / 2,
+    }
 
     renderer := sdl.CreateRenderer(window, nil)
 
     sdl.SetRenderVSync(renderer, 1)
 
-    ttf.Init()
-
     font_file := #load("./FiraCode-Regular.ttf")
-    font := ttf.OpenFontIO(sdl.IOFromMem(raw_data(font_file), len(font_file)), true, 32)
+    font_size: f32 = 24
+    font := ttf.OpenFontIO(sdl.IOFromMem(raw_data(font_file), len(font_file)), true, font_size)
 
     text_engine := ttf.CreateRendererTextEngine(renderer)
+
+    keybind_texts := make([dynamic]Key_Command_Texts, len(config.keybinds))
+
+    for i in 0..<len(config.keybinds) {
+        cstr: cstring = strings.clone_to_cstring(utf8.runes_to_string([]rune{config.keybinds[i].key}, context.temp_allocator), context.temp_allocator)
+
+        keybind_texts[i].key = ttf.CreateText(text_engine, font, cstr, len(cstr))
+
+        cstr = strings.clone_to_cstring(config.keybinds[i].command, context.temp_allocator)
+
+        keybind_texts[i].command = ttf.CreateText(text_engine, font, cstr, len(cstr))
+    }
 
     running := true
     for running {
@@ -104,30 +152,35 @@ main :: proc() {
 
         sdl.SetRenderDrawColor(renderer, 40, 40, 40, 255)
 
+        frame_size := [2]f32{
+            500,
+            500,
+        }
+        frame_center := frame_size / 2
+
         sdl.RenderFillRect(renderer, &sdl.FRect{
-            x = 1920 / 2 - 500 / 2,
-            y = 1080 / 2 - 500 / 2,
-            w = 500,
-            h = 500,
+            x = window_center.x - frame_center.x,
+            y = window_center.y - frame_center.y,
+            w = frame_size.x,
+            h = frame_size.y,
         })
         
         line := 0
-        for key in config.keybinds {
-            cstr: cstring = strings.clone_to_cstring(utf8.runes_to_string([]rune{key.key}, context.temp_allocator), context.temp_allocator)
+        line_height: f32 = 30
+        for k in keybind_texts {
+            text_offset := [2]f32 {
+                50,
+                50,
+            }
 
-            text := ttf.CreateText(text_engine, font, cstr, len(cstr))
+            render_pos := window_center - frame_center + text_offset
+            // the offset from the key text to the command text
+            command_offset_x := 100
+            
+            render_pos.y += line_height * f32(line)
 
-            ttf.DrawRendererText(text, f32(1920 / 2 - 500 / 2 + 50), f32(1080 / 2 - 500 / 2 + 32 +(line * 36)))
-
-            ttf.DestroyText(text)
-
-            cstr = strings.clone_to_cstring(key.command, context.temp_allocator)
-
-            text = ttf.CreateText(text_engine, font, cstr, len(cstr))
-
-            ttf.DrawRendererText(text, f32(1920 / 2 - 500 / 2 + 100), f32(1080 / 2 - 500 / 2 + 32 + (line * 36)))
-
-            ttf.DestroyText(text)
+            ttf.DrawRendererText(k.key, render_pos.x, render_pos.y)
+            ttf.DrawRendererText(k.command, render_pos.x + f32(command_offset_x), render_pos.y)
 
             line += 1
         }
