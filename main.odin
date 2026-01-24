@@ -1,3 +1,8 @@
+#+vet
+#+vet using-stmt
+#+vet using-param
+#+vet style
+#+vet explicit-allocators
 package skl
 
 import sdl "vendor:sdl3"
@@ -42,7 +47,7 @@ load_config :: proc() {
 
 spawn_command :: proc(command: string) -> (ok: bool) {
     program: os.Process_Desc = {
-        command = { command }
+        command = { command },
     }
 
     if process, err := os.process_start(program); err != nil {
@@ -69,9 +74,6 @@ main :: proc() {
     }
 
     display := sdl.GetDesktopDisplayMode(sdl.GetPrimaryDisplay())
-
-    window_width := 1920
-    window_height := 1080
 
     display_id := sdl.GetPrimaryDisplay()
 
@@ -101,6 +103,7 @@ main :: proc() {
     window_size := [2]i32{}
 
     sdl.GetWindowSize(window, &window_size.x, &window_size.y)
+
     window_center := [2]f32{
         f32(window_size.x) / 2,
         f32(window_size.y) / 2,
@@ -116,7 +119,7 @@ main :: proc() {
 
     text_engine := ttf.CreateRendererTextEngine(renderer)
 
-    keybind_texts := make([dynamic]Key_Command_Texts, len(config.keybinds))
+    keybind_texts := make([dynamic]Key_Command_Texts, len(config.keybinds), context.allocator)
 
     for i in 0..<len(config.keybinds) {
         cstr: cstring = strings.clone_to_cstring(utf8.runes_to_string([]rune{config.keybinds[i].key}, context.temp_allocator), context.temp_allocator)
@@ -156,6 +159,7 @@ main :: proc() {
             500,
             500,
         }
+
         frame_center := frame_size / 2
 
         sdl.RenderFillRect(renderer, &sdl.FRect{
@@ -175,7 +179,7 @@ main :: proc() {
 
             render_pos := window_center - frame_center + text_offset
             // the offset from the key text to the command text
-            command_offset_x := 100
+            command_offset_x := 30
             
             render_pos.y += line_height * f32(line)
 
